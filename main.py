@@ -28,7 +28,6 @@ class NetworkNode:
     def set_dst_probability(self, probability_generator, g: nx.Graph):
         self.dst_probability = probability_generator(self.node, g)
 
-
     def buffers(self, turn: int) -> tuple[list[int], list[int]]:
         if turn % 2 == 0:
             out_buf = self.buffer_even
@@ -38,9 +37,8 @@ class NetworkNode:
             next_buf = self.buffer_even
         return out_buf, next_buf
 
-    def generate_traffic_for_turn(self, p: DstProbability) -> list[int]:
-        return 
-
+    def generate_traffic_for_turn(self, k: int) -> list[int]:
+        return dst_choice(self.dst_probability, k)
 
 
 def build_random_net() -> nx.Graph:
@@ -90,11 +88,16 @@ def simulation(g: nx.Graph, turns: int):
         for n in g.nodes
     }
 
+    def random_number_of_packets(n: int) -> int:
+        return r.randint(0, 20)
+
+    how_many_new_packets = random_number_of_packets
+
     turn = turns
 
     while turn:
         for n, node in nodes.items():
-            buf_out, buf_in = node.buffers(turn)
+            buf_out, buf_next = node.buffers(turn)
             node.forward_history.append(len(buf_out))
 
             while len(buf_out):
@@ -103,7 +106,8 @@ def simulation(g: nx.Graph, turns: int):
                 if packet == n:
                     continue
                 next_hop = node.routing_table[n][1]
-                _, buf_next = nodes[next_hop].buffers(turn)
-                buf_next.append(packet)
+                _, buf2_next = nodes[next_hop].buffers(turn)
+                buf2_next.append(packet)
 
-            buf_in.
+            for new_packet in node.generate_traffic_for_turn(how_many_new_packets(n)):
+                buf_next.append(new_packet)
