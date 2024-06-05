@@ -41,7 +41,7 @@ class NetworkNode:
         return dst_choice(self.dst_probability, k)
 
 
-def build_random_net() -> nx.Graph:
+def build_random_graph() -> nx.Graph:
     nodes_no = r.randint(5, 20)
     g: nx.Graph = nx.cycle_graph(nodes_no)
 
@@ -73,7 +73,7 @@ def dst_choice(p: DstProbability, k: int = 1) -> nx._Node:
         yield r.choices(population=p.nodes, weights=p.probabilities, k=k)
 
 
-def simulation(g: nx.Graph, turns: int):
+def simulation(g: nx.Graph, turns: int) -> dict[int, NetworkNode]:
     # network
     # routing tables
     # plan traffic (who generates traffic???)
@@ -111,3 +111,18 @@ def simulation(g: nx.Graph, turns: int):
 
             for new_packet in node.generate_traffic_for_turn(how_many_new_packets(n)):
                 buf_next.append(new_packet)
+
+        turn -= 1
+
+    return nodes
+
+
+def main():
+    g = build_random_graph()
+    nodes = simulation(g, 50)
+    for n, node in nodes.items():
+        print(n, node.forward_history)
+
+
+if __name__ == "__main__":
+    main()
