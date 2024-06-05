@@ -1,7 +1,7 @@
 import random as r
 import networkx as nx
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 
 @dataclass
@@ -13,9 +13,24 @@ class DstProbability:
 @dataclass
 class NodeAtributes:
     node: int
-    # list of number of packets forwarded in every turn
-    forward_history: list[int]
     routing_table: dict[int, list[int]]
+
+    # list of packets to be forwarded
+    # the value(int) represents the destination
+    buffer_odd: list[int] = field(default_factory=list)
+    buffer_even: list[int] = field(default_factory=list)
+
+    # list of number of packets forwarded in every turn
+    forward_history: list[int] = field(default_factory=list)
+
+    def buffers(self, turn: int) -> tuple[list[int], list[int]]:
+        if turn % 2 == 0:
+            out_buf = self.buffer_even
+            next_buf = self.buffer_odd
+        else:
+            out_buf = self.buffer_odd
+            next_buf = self.buffer_even
+        return out_buf, next_buf
 
 
 def build_random_net() -> nx.Graph:
@@ -48,7 +63,7 @@ def dst_choice(p: DstProbability, k: int = 1) -> nx._Node:
         yield r.choices(population=p.nodes, weights=p.probabilities, k=k)
 
 
-def simulation(g: nx.Graph):
+def simulation(g: nx.Graph, turns: int):
     # network
     # routing tables
     # plan traffic (who generates traffic???)
@@ -58,6 +73,22 @@ def simulation(g: nx.Graph):
     #           check next hop in routing table
     #           send to next hop
     #           increment forwarded packet
-    nodes = {n: NodeAtributes(n, 0, nx.shortest_path(g, source=n))
-             for n in g.nodes}
-    
+    nodes: dict[int, NodeAtributes] = {
+        n: NodeAtributes(n, nx.shortest_path(g, source=n))
+        for n in g.nodes
+    }
+
+    turn = turns
+
+    while turn:
+        for n, node in nodes.items():
+            buf_out, _ = node.buffers()
+            node.forward_history.append(len(buf_out))
+
+            while len(buf_out):
+                packet = buf_out.pop()
+                # the packet is at the destination
+                if packet == n:
+                    continue
+                next_hop = node.routing_table[n][1]
+                nodes[next_hop].buffers(turns)
