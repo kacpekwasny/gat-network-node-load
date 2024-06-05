@@ -11,7 +11,7 @@ class DstProbability:
 
 
 @dataclass
-class NodeAtributes:
+class NetworkNode:
     node: int
     routing_table: dict[int, list[int]]
 
@@ -23,6 +23,12 @@ class NodeAtributes:
     # list of number of packets forwarded in every turn
     forward_history: list[int] = field(default_factory=list)
 
+    dst_probability: DstProbability = field(default=None)
+
+    def set_dst_probability(self, probability_generator, g: nx.Graph):
+        self.dst_probability = probability_generator(self.node, g)
+
+
     def buffers(self, turn: int) -> tuple[list[int], list[int]]:
         if turn % 2 == 0:
             out_buf = self.buffer_even
@@ -31,6 +37,10 @@ class NodeAtributes:
             out_buf = self.buffer_odd
             next_buf = self.buffer_even
         return out_buf, next_buf
+
+    def generate_traffic_for_turn(self, p: DstProbability) -> list[int]:
+        return 
+
 
 
 def build_random_net() -> nx.Graph:
@@ -51,9 +61,11 @@ def build_random_net() -> nx.Graph:
     return g
 
 
-def generate_dst_probability_random_uniform(g: nx.Graph) -> DstProbability:
+def generate_dst_probability_random_uniform(self: int, g: nx.Graph) -> DstProbability:
+    nodes = list(g.nodes)
+    nodes.remove(self)
     return DstProbability(
-        nodes=list(g.nodes),
+        nodes=nodes,
         probabilities=[1/len(g.nodes) for n in g.nodes],
     )
 
@@ -73,8 +85,8 @@ def simulation(g: nx.Graph, turns: int):
     #           check next hop in routing table
     #           send to next hop
     #           increment forwarded packet
-    nodes: dict[int, NodeAtributes] = {
-        n: NodeAtributes(n, nx.shortest_path(g, source=n))
+    nodes: dict[int, NetworkNode] = {
+        n: NetworkNode(n, nx.shortest_path(g, source=n))
         for n in g.nodes
     }
 
@@ -82,7 +94,7 @@ def simulation(g: nx.Graph, turns: int):
 
     while turn:
         for n, node in nodes.items():
-            buf_out, _ = node.buffers()
+            buf_out, buf_in = node.buffers(turn)
             node.forward_history.append(len(buf_out))
 
             while len(buf_out):
@@ -91,4 +103,7 @@ def simulation(g: nx.Graph, turns: int):
                 if packet == n:
                     continue
                 next_hop = node.routing_table[n][1]
-                nodes[next_hop].buffers(turns)
+                _, buf_next = nodes[next_hop].buffers(turn)
+                buf_next.append(packet)
+
+            buf_in.
