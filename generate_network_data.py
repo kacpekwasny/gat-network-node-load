@@ -117,6 +117,7 @@ def simulation(g: nx.Graph, turns: int) -> dict[int, NetworkNode]:
 
     return nodes
 
+
 def main():
     g = build_random_graph()
     nodes = simulation(g, 50)
@@ -135,6 +136,7 @@ def main():
     edges = list(g.edges)
     edge_df = pd.DataFrame(edges, columns=['source', 'target'])
     edge_df.to_csv('network_edges.csv', index=False)
+
 
 if __name__ == "__main__":
     main()
