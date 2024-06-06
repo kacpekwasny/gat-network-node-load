@@ -1,12 +1,12 @@
 import random as r
 import networkx as nx
-
+import pandas as pd
 from dataclasses import dataclass, field
 
 
 @dataclass
 class DstProbability:
-    nodes: list[nx._Node]
+    nodes: list[int]
     probabilities: list[float]
 
 
@@ -38,21 +38,21 @@ class NetworkNode:
         return out_buf, next_buf
 
     def generate_traffic_for_turn(self, k: int) -> list[int]:
-        return dst_choice(self.dst_probability, k)
+        return list(dst_choice(self.dst_probability, k))
 
 
 def build_random_graph() -> nx.Graph:
-    nodes_no = r.randint(5, 20)
+    nodes_no = r.randint(350, 450)
     g: nx.Graph = nx.cycle_graph(nodes_no)
 
-    more_edges = r.randint(0, (nodes_no * (nodes_no) / 2 - nodes_no) // 2)
+    more_edges = r.randint(0, (nodes_no * (nodes_no - 1) // 2) // 2)
 
     while more_edges > 0:
-        n1 = r.choice(g.nodes)
-        n2 = r.choice(g.nodes)
-        if n1 == n2:
+        n1 = r.choice(list(g.nodes))
+        n2 = r.choice(list(g.nodes))
+        if n1 == n2 or g.has_edge(n1, n2):
             continue
-        # if n1 and n2 conneted, then nothing changed
+        # if n1 and n2 connected, then nothing changed
         g.add_edge(n1, n2)
         more_edges -= 1
 
@@ -64,13 +64,12 @@ def generate_dst_probability_random_uniform(self: int, g: nx.Graph) -> DstProbab
     nodes.remove(self)
     return DstProbability(
         nodes=nodes,
-        probabilities=[1/len(g.nodes) for n in g.nodes],
+        probabilities=[1/len(nodes) for _ in nodes],
     )
 
 
-def dst_choice(p: DstProbability, k: int = 1) -> nx._Node:
-    for i in range(k):
-        yield r.choices(population=p.nodes, weights=p.probabilities, k=k)
+def dst_choice(p: DstProbability, k: int = 1) -> int:
+    return r.choices(population=p.nodes, weights=p.probabilities, k=k)
 
 
 def simulation(g: nx.Graph, turns: int) -> dict[int, NetworkNode]:
@@ -88,11 +87,13 @@ def simulation(g: nx.Graph, turns: int) -> dict[int, NetworkNode]:
         for n in g.nodes
     }
 
+    for node in nodes.values():
+        node.set_dst_probability(generate_dst_probability_random_uniform, g)
+
     def random_number_of_packets(n: int) -> int:
         return r.randint(0, 20)
 
     how_many_new_packets = random_number_of_packets
-
     turn = turns
 
     while turn:
@@ -100,12 +101,12 @@ def simulation(g: nx.Graph, turns: int) -> dict[int, NetworkNode]:
             buf_out, buf_next = node.buffers(turn)
             node.forward_history.append(len(buf_out))
 
-            while len(buf_out):
+            while buf_out:
                 packet = buf_out.pop()
                 # the packet is at the destination
                 if packet == n:
                     continue
-                next_hop = node.routing_table[n][1]
+                next_hop = node.routing_table[packet][1]
                 _, buf2_next = nodes[next_hop].buffers(turn)
                 buf2_next.append(packet)
 
@@ -116,13 +117,24 @@ def simulation(g: nx.Graph, turns: int) -> dict[int, NetworkNode]:
 
     return nodes
 
-
 def main():
     g = build_random_graph()
     nodes = simulation(g, 50)
-    for n, node in nodes.items():
-        print(n, node.forward_history)
 
+    # Save node data
+    node_data = []
+    for n, node in nodes.items():
+        node_data.append({
+            'node': n,
+            'forward_history': node.forward_history
+        })
+    df = pd.DataFrame(node_data)
+    df.to_csv('network_data.csv', index=False)
+
+    # Save graph structure
+    edges = list(g.edges)
+    edge_df = pd.DataFrame(edges, columns=['source', 'target'])
+    edge_df.to_csv('network_edges.csv', index=False)
 
 if __name__ == "__main__":
     main()
