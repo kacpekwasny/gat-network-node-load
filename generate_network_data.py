@@ -4,6 +4,10 @@ import pandas as pd
 from dataclasses import dataclass, field
 
 
+SMALLEST_NET = 5
+BIGGEST_NET = 50
+
+
 @dataclass
 class DstProbability:
     nodes: list[int]
@@ -25,6 +29,8 @@ class NetworkNode:
 
     dst_probability: DstProbability = field(default=None)
 
+    generated_packets: int = field(default=0)
+
     def set_dst_probability(self, probability_generator, g: nx.Graph):
         self.dst_probability = probability_generator(self.node, g)
 
@@ -42,7 +48,7 @@ class NetworkNode:
 
 
 def build_random_graph() -> nx.Graph:
-    nodes_no = r.randint(350, 450)
+    nodes_no = r.randint(SMALLEST_NET, BIGGEST_NET)
     g: nx.Graph = nx.cycle_graph(nodes_no)
 
     more_edges = r.randint(0, (nodes_no * (nodes_no - 1) // 2) // 2)
@@ -110,7 +116,9 @@ def simulation(g: nx.Graph, turns: int) -> dict[int, NetworkNode]:
                 _, buf2_next = nodes[next_hop].buffers(turn)
                 buf2_next.append(packet)
 
-            for new_packet in node.generate_traffic_for_turn(how_many_new_packets(n)):
+            k = how_many_new_packets(n)
+            node.generated_packets += k
+            for new_packet in node.generate_traffic_for_turn(k):
                 buf_next.append(new_packet)
 
         turn -= 1
@@ -120,14 +128,15 @@ def simulation(g: nx.Graph, turns: int) -> dict[int, NetworkNode]:
 
 def main():
     g = build_random_graph()
-    nodes = simulation(g, 50)
+    nodes = simulation(g, 500)
 
     # Save node data
     node_data = []
     for n, node in nodes.items():
         node_data.append({
             'node': n,
-            'forward_history': node.forward_history
+            'forward_history': node.forward_history,
+            'generated_packets': node.generated_packets,
         })
     df = pd.DataFrame(node_data)
     df.to_csv('network_data.csv', index=False)
