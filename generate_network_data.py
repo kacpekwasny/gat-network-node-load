@@ -1,11 +1,22 @@
 import random as r
 import networkx as nx
 import pandas as pd
+import numpy as np
+
 from dataclasses import dataclass, field
 
 
+# notes:
+# DATA:
+#   X:          189, 3,   floaty: (0, 1)
+#   Edge Index: 2, 9375,  inty
+#   Edge Attr:  9375, 10, floaty (-1, 30)
+#   Y:          189, 1    floaty (..., 25)
 SMALLEST_NET = 5
 BIGGEST_NET = 50
+
+MIN_PACKETS_PER_TURN = 0
+MAX_PACKETS_PER_TURN = 20
 
 
 @dataclass
@@ -43,12 +54,12 @@ class NetworkNode:
             next_buf = self.buffer_even
         return out_buf, next_buf
 
-    def generate_traffic_for_turn(self, k: int) -> list[int]:
+    def generate_traffic(self, k: int) -> list[int]:
         return list(dst_choice(self.dst_probability, k))
 
 
-def build_random_graph() -> nx.Graph:
-    nodes_no = r.randint(SMALLEST_NET, BIGGEST_NET)
+def build_random_graph(smallest: int, biggest: int) -> nx.Graph:
+    nodes_no = r.randint(smallest, biggest)
     g: nx.Graph = nx.cycle_graph(nodes_no)
 
     more_edges = r.randint(0, (nodes_no * (nodes_no - 1) // 2) // 2)
@@ -93,15 +104,13 @@ def simulation(g: nx.Graph, turns: int) -> dict[int, NetworkNode]:
         for n in g.nodes
     }
 
+    def how_many_new_packets(n: int) -> int:
+        return r.randint(MIN_PACKETS_PER_TURN, MAX_PACKETS_PER_TURN)
+
     for node in nodes.values():
         node.set_dst_probability(generate_dst_probability_random_uniform, g)
 
-    def random_number_of_packets(n: int) -> int:
-        return r.randint(0, 20)
-
-    how_many_new_packets = random_number_of_packets
     turn = turns
-
     while turn:
         for n, node in nodes.items():
             buf_out, buf_next = node.buffers(turn)
@@ -118,7 +127,7 @@ def simulation(g: nx.Graph, turns: int) -> dict[int, NetworkNode]:
 
             k = how_many_new_packets(n)
             node.generated_packets += k
-            for new_packet in node.generate_traffic_for_turn(k):
+            for new_packet in node.generate_traffic(k):
                 buf_next.append(new_packet)
 
         turn -= 1
@@ -126,26 +135,43 @@ def simulation(g: nx.Graph, turns: int) -> dict[int, NetworkNode]:
     return nodes
 
 
-def main():
-    g = build_random_graph()
-    nodes = simulation(g, 500)
+def generate_node_and_edge_data(
+        smallest_net: int,
+        biggest_net: int,
+        turns: int,
+        to_csv_and_suff: tuple[bool, str] = (False, "1"),
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+
+    to_csv, suffix = to_csv_and_suff
+
+    g = build_random_graph(smallest_net, biggest_net)
+
+    nodes = simulation(g, turns)
 
     # Save node data
     node_data = []
     for n, node in nodes.items():
         node_data.append({
             'node': n,
-            'forward_history': node.forward_history,
-            'generated_packets': node.generated_packets,
+            'forward_min': min(node.forward_history),
+            'forward_max': max(node.forward_history),
+            'forward_avg': sum(node.forward_history) / turns,
+            'generated_packets_sum': node.generated_packets,
+            'generated_packets_avg': node.generated_packets / turns,
         })
     df = pd.DataFrame(node_data)
-    df.to_csv('network_data.csv', index=False)
+    if to_csv:
+        df.to_csv(f'network_data_{suffix}.csv', index=False)
 
     # Save graph structure
-    edges = list(g.edges)
-    edge_df = pd.DataFrame(edges, columns=['source', 'target'])
-    edge_df.to_csv('network_edges.csv', index=False)
+    edge_idx = np.array(list(g.edges), dtype=np.longlong)
+    edge_idx = np.concat((edge_idx, edge_idx[:, [1, 0]]))
+    edge_df = pd.DataFrame(edge_idx, columns=['source', 'target'])
+    if to_csv:
+        edge_df.to_csv(f'network_edges_{suffix}.csv', index=False)
+
+    return node_data, edge_df
 
 
 if __name__ == "__main__":
-    main()
+    node_data, edge_data = generate_node_and_edge_data(5, 60, 5000)
