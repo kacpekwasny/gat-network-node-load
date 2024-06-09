@@ -1,3 +1,4 @@
+import json
 import random as r
 import networkx as nx
 import pandas as pd
@@ -18,7 +19,9 @@ DATA_DIR = Path(__file__).parent / "data"
 #   Edge Index: 2, 9375,  inty
 #   Edge Attr:  9375, 10, floaty (-1, 30)
 #   Y:          189, 1    floaty (..., 25)
-SMALLEST_NET = 5
+
+### zafixowane, bo architektura ###
+SMALLEST_NET = 50
 BIGGEST_NET = 50
 
 MIN_PACKETS_PER_TURN = 0
@@ -168,8 +171,10 @@ def generate_node_and_edge_data(
     # Save node data
     node_data = []
     for n, node in nodes.items():
+        routing = [len(r) for r in node.routing_table.values()]
         node_data.append({
             'node': n,
+            'routing': json.dumps((np.array(routing) / max(routing)).tolist()),
             'forward_min': min(node.forward_history),
             'forward_max': max(node.forward_history),
             'forward_avg': sum(node.forward_history) / turns,
@@ -193,6 +198,8 @@ def generate_node_and_edge_data(
 
 
 if __name__ == "__main__":
-    for i in range(int(sys.argv[1])):
+    n = int(sys.argv[1])
+    for i in range(n):
+        print("Generating ", i, "/", n)
         node_data, edge_data = generate_node_and_edge_data(
-                5, 60, 5000, to_csv_and_suff=(True, str(i)))
+                50, 50, 5000, to_csv_and_suff=(True, str(i)))

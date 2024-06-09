@@ -1,4 +1,5 @@
 from datetime import datetime
+import json
 import torch
 import random
 import torch.nn.functional as F
@@ -8,10 +9,8 @@ import numpy as np
 from pathlib import Path
 
 from torch_geometric.data import Data, DataLoader
-from sklearn.preprocessing import MinMaxScaler
 
 import models
-from plot_results import analyze_results
 from generate_network_data import DATA_DIR
 
 MODEL_DIR = Path(__file__).parent / "models"
@@ -37,12 +36,15 @@ def read_data(i: int):
     # edge_attr = torch.from_numpy(edges.to_numpy(np.float32))
     # edge_attr = (edge_attr - edge_attr.mean(axis=0)) / (edge_attr.std(axis=0))
 
-    node_x = torch.from_numpy(
-        node.loc[:, ['generated_packets_avg']].to_numpy(np.float32)) # .unsqueeze(1)
+    node['routing'] = node['routing'].map(json.loads).map(list)
+    node_x_gen_packets = torch.from_numpy(
+            node['generated_packets_avg'].to_numpy(np.float32)[np.newaxis, :]) # .unsqueeze(1)
+    node_x_routing = torch.from_numpy(np.array(node['routing'].tolist(), dtype=np.float32))
+    node_x = torch.concat((node_x_gen_packets, node_x_routing))
     node_x = (node_x - node_x.flatten().min()) / node_x.flatten().max()
 
     node_y = torch.from_numpy(
-        node.loc[:, ['forward_avg']].to_numpy(np.float32)) # .unsqueeze(1)
+        node['forward_avg'].to_numpy(np.float32)) # .unsqueeze(1)
     node_y = node_y / node_y.flatten().max()
 
     return Data(x=node_x, edge_index=edge_index, y=node_y)
@@ -73,24 +75,15 @@ def get_data(number_data: int, num_train: int, num_val: int) -> tuple[list[Data]
 data_train, data_val, data_test = get_data(100, NUM_TRAIN, NUM_VAL)
 
 hyperparams = {
-    'batch_size': 3,
+    'batch_size': 8,
     'save_loss_interval': 10,
     'print_interval': 50,
     'save_model_interval': 250,
     'n_epochs': 1500,
-    'learning_rate': 0.001
+    'learning_rate': 0.0001
 }
 
 def train(model: torch.nn.Module):
-    ''' 
-    Train model with given hyperparams dict.
-
-    Saves the following CSVs over the course of training:
-    1. the loss trajectory: the val and train loss every save_loss_interval epochs at
-       filename 'results/{name_prefix}_{learning_rate}_train.csv' e.g. 'results/baseline_0.05_train.csv'
-    2. every save_model_interval save both the model at e.g. 'models/baseline_0.05_0_out_of_1000.pt`
-       and the predicted values vs actual values in `results/baseline_0.05_0_out_of_1000_prediction.csv' on the test data.
-    '''
     learning_rate = hyperparams['learning_rate']
     batch_size = hyperparams['batch_size']
     n_epochs = hyperparams['n_epochs']
@@ -129,13 +122,13 @@ def train(model: torch.nn.Module):
 
 
 if __name__ == "__main__":
-    model, losses = train(models.GNN(num_features=1))
+    model, losses = train(models.GNNKacper(num_features=50, hidden_size=128))
 
     import analyze as az
     az.comparison_plot(losses)
     d = data_test[0]
     
-    az.draw_results(d.edge_index.T, model(d), d.y)
+    # az.draw_results(d.edge_index.T, model(d).detach(), d.y)
 
 
 

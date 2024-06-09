@@ -30,7 +30,7 @@ def draw_results(edge_list, pred, Y) -> None:
     color_map_y = []
     for p, y in zip(pred, Y):
         color_map_pred.append(p.numpy()[0])
-        color_map_y.append(y.numpy()[0])
+        color_map_y.append(y.numpy())
     nx.draw(g, node_color=color_map_y)
     plt.savefig('pred.png')
 

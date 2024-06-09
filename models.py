@@ -83,3 +83,31 @@ class MyGAT(torch.nn.Module):
         x = self.conv4(x, edge_index)
         x = self.bn4(x)
         return x
+
+
+
+class GNNKacper(torch.nn.Module):
+    def __init__(self, num_features=3, hidden_size=32, target_size=1):
+        super().__init__()
+        self.hidden_size = hidden_size
+        self.num_features = num_features
+        self.target_size = target_size
+        self.convs = [GATConv(self.num_features, self.hidden_size),
+                      GATConv(self.hidden_size, self.hidden_size)]
+        self.linears = nn.ParameterList([
+            nn.Linear(self.hidden_size, self.hidden_size),
+            nn.Linear(self.hidden_size, self.hidden_size),
+            nn.Linear(self.hidden_size, self.target_size),
+        ])
+
+    def forward(self, data):
+        x, edge_index, edge_attr = data.x, data.edge_index, data.edge_attr
+        for conv in self.convs[:-1]:
+            x = conv(x, edge_index)
+            x = F.relu(x)
+            x = F.dropout(x, training=self.training)
+        x = self.convs[-1](x, edge_index)
+        for lin in self.linears:
+            x = lin(x)
+        return F.relu(x)  # since we know Y = log_gdp > 0, enforce via relu
+
