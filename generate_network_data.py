@@ -3,8 +3,14 @@ import networkx as nx
 import pandas as pd
 import numpy as np
 
-from dataclasses import dataclass, field
+import matplotlib.pyplot as plt
 
+from dataclasses import dataclass, field
+from pathlib import Path
+
+from pandas.compat import sys
+
+DATA_DIR = Path(__file__).parent / "data"
 
 # notes:
 # DATA:
@@ -17,6 +23,7 @@ BIGGEST_NET = 50
 
 MIN_PACKETS_PER_TURN = 0
 MAX_PACKETS_PER_TURN = 20
+MORE_PACKETS_PER_TURN = 10
 
 
 @dataclass
@@ -39,6 +46,13 @@ class NetworkNode:
     forward_history: list[int] = field(default_factory=list)
 
     dst_probability: DstProbability = field(default=None)
+
+    # probability of generating packets, the min every turn, and max
+    packet_generated_probability: tuple[int, int] = field(
+            default_factory=lambda: (
+                lambda x: [x, x + r.randint(0, MORE_PACKETS_PER_TURN)])(
+                r.randint(MIN_PACKETS_PER_TURN, MAX_PACKETS_PER_TURN)
+    ))
 
     generated_packets: int = field(default=0)
 
@@ -85,7 +99,7 @@ def generate_dst_probability_random_uniform(self: int, g: nx.Graph) -> DstProbab
     )
 
 
-def dst_choice(p: DstProbability, k: int = 1) -> int:
+def dst_choice(p: DstProbability, k: int = 1) -> list[int]:
     return r.choices(population=p.nodes, weights=p.probabilities, k=k)
 
 
@@ -104,8 +118,8 @@ def simulation(g: nx.Graph, turns: int) -> dict[int, NetworkNode]:
         for n in g.nodes
     }
 
-    def how_many_new_packets(n: int) -> int:
-        return r.randint(MIN_PACKETS_PER_TURN, MAX_PACKETS_PER_TURN)
+    def how_many_new_packets(n: NetworkNode) -> int:
+        return r.randint(*n.packet_generated_probability)
 
     for node in nodes.values():
         node.set_dst_probability(generate_dst_probability_random_uniform, g)
@@ -125,7 +139,7 @@ def simulation(g: nx.Graph, turns: int) -> dict[int, NetworkNode]:
                 _, buf2_next = nodes[next_hop].buffers(turn)
                 buf2_next.append(packet)
 
-            k = how_many_new_packets(n)
+            k = how_many_new_packets(node)
             node.generated_packets += k
             for new_packet in node.generate_traffic(k):
                 buf_next.append(new_packet)
@@ -147,6 +161,9 @@ def generate_node_and_edge_data(
     g = build_random_graph(smallest_net, biggest_net)
 
     nodes = simulation(g, turns)
+    if to_csv:
+        nx.draw(g)
+        plt.savefig(DATA_DIR / f"PLOT_{suffix}.png")
 
     # Save node data
     node_data = []
@@ -158,20 +175,24 @@ def generate_node_and_edge_data(
             'forward_avg': sum(node.forward_history) / turns,
             'generated_packets_sum': node.generated_packets,
             'generated_packets_avg': node.generated_packets / turns,
+            'generated_packets_prob_min': node.packet_generated_probability[0],
+            'generated_packets_prob_max': node.packet_generated_probability[1],
         })
-    df = pd.DataFrame(node_data)
+    node_df = pd.DataFrame(node_data)
     if to_csv:
-        df.to_csv(f'network_data_{suffix}.csv', index=False)
+        node_df.to_csv(DATA_DIR / f'NODE_{suffix}.csv', index=False)
 
     # Save graph structure
     edge_idx = np.array(list(g.edges), dtype=np.longlong)
-    edge_idx = np.concat((edge_idx, edge_idx[:, [1, 0]]))
+    edge_idx = np.concatenate((edge_idx, edge_idx[:, [1, 0]]))
     edge_df = pd.DataFrame(edge_idx, columns=['source', 'target'])
     if to_csv:
-        edge_df.to_csv(f'network_edges_{suffix}.csv', index=False)
+        edge_df.to_csv(DATA_DIR / f'EDGE_{suffix}.csv', index=False)
 
-    return node_data, edge_df
+    return node_df, edge_df
 
 
 if __name__ == "__main__":
-    node_data, edge_data = generate_node_and_edge_data(5, 60, 5000)
+    for i in range(int(sys.argv[1])):
+        node_data, edge_data = generate_node_and_edge_data(
+                5, 60, 5000, to_csv_and_suff=(True, str(i)))
