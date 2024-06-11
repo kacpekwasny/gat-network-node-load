@@ -1,3 +1,5 @@
+from pathlib import Path
+import torch
 import networkx as nx
 import seaborn as sns
 import matplotlib.pyplot as plt
@@ -38,3 +40,30 @@ def draw_results(edge_list, pred, Y) -> None:
     plt.savefig('pred.png')
 
     pass
+
+def compare_results(y, pred):
+    print( torch.cat(y, pred))
+
+def list_models(model_idx=None):
+    models_path = Path(__file__).parent / "models"
+    models = sorted(models_path.glob("MODEL_*"))
+
+    if model_idx is not None:
+        return models[model_idx]
+
+    for i, model_path in enumerate(models):
+        print(i, model_path)
+
+
+if __name__ == "__main__":
+    from sys import argv 
+    if len(argv) < 2:
+        list_models()
+        exit()
+    model_path = list_models(int(argv[1]))    
+
+    import inference as inf
+    import models
+    
+    model = inf.load_model(model_path, models.GNNKacper())
+    

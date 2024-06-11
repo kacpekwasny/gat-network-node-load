@@ -59,6 +59,9 @@ class NetworkNode:
 
     generated_packets: int = field(default=0)
 
+    def __post_init__(self):
+        self.routing_table.pop(self.node)
+
     def set_dst_probability(self, probability_generator, g: nx.Graph):
         self.dst_probability = probability_generator(self.node, g)
 
@@ -73,6 +76,7 @@ class NetworkNode:
 
     def generate_traffic(self, k: int) -> list[int]:
         return list(dst_choice(self.dst_probability, k))
+
 
 
 def build_random_graph(smallest: int, biggest: int) -> nx.Graph:

@@ -92,12 +92,16 @@ class GNNKacper(torch.nn.Module):
         self.hidden_size = hidden_size
         self.num_features = num_features
         self.target_size = target_size
-        self.convs = [GATConv(self.num_features, self.hidden_size),
-                      GATConv(self.hidden_size, self.hidden_size)]
+        self.convs = [
+                GATConv(self.num_features, self.hidden_size),
+                GATConv(self.hidden_size, self.hidden_size),
+                GATConv(self.hidden_size, self.hidden_size),
+                GATConv(self.hidden_size, self.hidden_size)
+        ]
         self.linears = nn.ParameterList([
-            nn.Linear(self.hidden_size, self.hidden_size),
-            nn.Linear(self.hidden_size, self.hidden_size),
-            nn.Linear(self.hidden_size, self.target_size),
+            nn.Linear(hidden_size, 256),
+            nn.Linear(256, 128),
+            nn.Linear(128, self.target_size),
         ])
 
     def forward(self, data):
