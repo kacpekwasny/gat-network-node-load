@@ -92,16 +92,14 @@ class GNNKacper(torch.nn.Module):
         self.hidden_size = hidden_size
         self.num_features = num_features
         self.target_size = target_size
-        self.convs = [
+        self.convs = nn.ParameterList([
                 GATConv(self.num_features, self.hidden_size),
                 GATConv(self.hidden_size, self.hidden_size),
-                GATConv(self.hidden_size, self.hidden_size),
-                GATConv(self.hidden_size, self.hidden_size)
-        ]
+        ])
         self.linears = nn.ParameterList([
             nn.Linear(hidden_size, 256),
-            nn.Linear(256, 128),
-            nn.Linear(128, self.target_size),
+            nn.Linear(256, 256),
+            nn.Linear(256, self.target_size),
         ])
 
     def forward(self, data):
@@ -113,5 +111,6 @@ class GNNKacper(torch.nn.Module):
         x = self.convs[-1](x, edge_index)
         for lin in self.linears:
             x = lin(x)
+            x = F.relu(x)
         return F.relu(x)  # since we know Y = log_gdp > 0, enforce via relu
 

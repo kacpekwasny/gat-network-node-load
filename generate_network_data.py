@@ -1,4 +1,5 @@
 import json
+from os import makedirs
 import random as r
 import networkx as nx
 import pandas as pd
@@ -12,6 +13,8 @@ from pathlib import Path
 from pandas.compat import sys
 
 DATA_DIR = Path(__file__).parent / "data"
+DATA_DIR = Path(__file__).parent / "data_r_unsorted"
+makedirs(DATA_DIR, exist_ok=True)
 
 # notes:
 # DATA:
@@ -60,6 +63,7 @@ class NetworkNode:
     generated_packets: int = field(default=0)
 
     def __post_init__(self):
+        return
         self.routing_table.pop(self.node)
 
     def set_dst_probability(self, probability_generator, g: nx.Graph):
@@ -175,7 +179,7 @@ def generate_node_and_edge_data(
     # Save node data
     node_data = []
     for n, node in nodes.items():
-        routing = [len(r) for r in node.routing_table.values()]
+        routing = [len(node.routing_table[r]) for r in sorted(node.routing_table.keys())]
         node_data.append({
             'node': n,
             'routing': json.dumps((np.array(routing) / max(routing)).tolist()),

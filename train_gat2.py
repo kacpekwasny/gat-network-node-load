@@ -84,6 +84,7 @@ def train(model: torch.nn.Module):
     loader = DataLoader(data_train, batch_size=batch_size, shuffle=True)
     losses = []
 
+
     for epoch in range(n_epochs):
         epoch_loss = 0
         model.train()
@@ -109,14 +110,14 @@ def train(model: torch.nn.Module):
 
     return model, losses
 
-model = models.GNNKacper(num_features=50, hidden_size=256)
+model = models.GNNKacper(num_features=50, hidden_size=32)
 
 if __name__ == "__main__":
     # the function described above, these data are what we'll work with
     data_train, data_val = get_data(NUM_TRAIN)
 
     hyperparams = {
-        'batch_size': 128,
+        'batch_size': 256,
         'save_loss_interval': 10,
         'print_interval': 50,
         'save_model_interval': 250,
