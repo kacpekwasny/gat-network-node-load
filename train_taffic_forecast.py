@@ -74,8 +74,10 @@ if __name__ == "__main__":
 
     data = data_read_dir(argv[1])
     for nodes, adj in data:
-        tn = nodes[:, :40]
-        vn = nodes[:, 40:]
+        steps = nodes.shape[0]
+
+        tn = nodes[:int(steps * 0.8)]
+        vn = nodes[int(steps*0.8):]
         dt = create_tf_dataset(
             tn,
             input_sequence_length=input_sequence_length,
