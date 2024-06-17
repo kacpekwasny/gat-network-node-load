@@ -122,6 +122,9 @@ def data_process_edge(df: pd.DataFrame) -> torch.Tensor:
 
 
 def data_read_dir(data_dir: Path) -> tuple[np.ndarray, np.ndarray]:
+    if not isinstance(data_dir, Path):
+        data_dir = Path(data_dir)
+        
     data_list: list[tuple[pd.DataFrame, pd.DataFrame]] = [
         data_read_pair(data_dir, i) for i, _ in enumerate(data_dir.glob("EDGE_*"))
     ]

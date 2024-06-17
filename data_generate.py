@@ -196,8 +196,8 @@ def save_network_sim_data(edge_df: pd.DataFrame, node_df: pd.DataFrame, suffix: 
 DATA_DIR = Path(__file__).parent / "data_size_5"
 
 # zafixowane, bo architektura #
-SMALLEST_NET = 10
-BIGGEST_NET = 10
+SMALLEST_NET = 50
+BIGGEST_NET = 50
 
 MIN_PACKETS_PER_TURN = 0
 MAX_PACKETS_PER_TURN = 5
