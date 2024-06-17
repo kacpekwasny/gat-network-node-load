@@ -13,15 +13,6 @@ from pathlib import Path
 from pandas.compat import sys
 
 
-# notes:
-# DATA:
-#   X:          189, 3,   floaty: (0, 1)
-#   Edge Index: 2, 9375,  inty
-#   Edge Attr:  9375, 10, floaty (-1, 30)
-#   Y:          189, 1    floaty (..., 25)
-
-
-
 @dataclass
 class DstProbability:
     nodes: list[int]
@@ -45,10 +36,10 @@ class NetworkNode:
 
     # probability of generating packets, the min every turn, and max
     packet_generated_probability: tuple[int, int] = field(
-            default_factory=lambda: (
-                lambda x: [x, x + r.randint(0, MORE_PACKETS_PER_TURN)])(
-                r.randint(MIN_PACKETS_PER_TURN, MAX_PACKETS_PER_TURN)
-    ))
+        default_factory=lambda: (
+            lambda x: [x, x + r.randint(0, MORE_PACKETS_PER_TURN)])(
+            r.randint(MIN_PACKETS_PER_TURN, MAX_PACKETS_PER_TURN)
+        ))
 
     generated_packets: int = field(default=0)
 
@@ -70,7 +61,6 @@ class NetworkNode:
 
     def generate_traffic(self, k: int) -> list[int]:
         return list(dst_choice(self.dst_probability, k))
-
 
 
 def build_random_graph(smallest: int, biggest: int) -> nx.Graph:
@@ -155,7 +145,7 @@ def generate_node_and_edge_data(
         biggest_net: int,
         turns: int,
         to_csv_and_suff: tuple[bool, str] = (False, "1"),
-) -> tuple[pd.DataFrame, pd.DataFrame]:
+) -> tuple[nx.Graph, pd.DataFrame, pd.DataFrame]:
 
     to_csv, suffix = to_csv_and_suff
 
@@ -169,10 +159,14 @@ def generate_node_and_edge_data(
     # Save node data
     node_data = []
     for n, node in nodes.items():
-        routing = [len(node.routing_table[r]) for r in sorted(node.routing_table.keys())]
+        no_of_hops = [len(node.routing_table[r])
+                      for r in sorted(node.routing_table.keys())]
         node_data.append({
             'node': n,
-            'routing': json.dumps((np.array(routing) / max(routing)).tolist()),
+            'routing': json.dumps(no_of_hops),
+            # the probability is uniform
+            # 'dst_probability': node.dst_probability.probabilities,
+            'forward_history': json.dumps(node.forward_history),
             'forward_min': min(node.forward_history),
             'forward_max': max(node.forward_history),
             'forward_avg': sum(node.forward_history) / turns,
@@ -182,30 +176,37 @@ def generate_node_and_edge_data(
             'generated_packets_prob_max': node.packet_generated_probability[1],
         })
     node_df = pd.DataFrame(node_data)
-    if to_csv:
-        node_df.to_csv(DATA_DIR / f'NODE_{suffix}.csv', index=False)
 
     # Save graph structure
     edge_idx = np.array(list(g.edges), dtype=np.longlong)
     edge_idx = np.concatenate((edge_idx, edge_idx[:, [1, 0]]))
     edge_df = pd.DataFrame(edge_idx, columns=['source', 'target'])
-    if to_csv:
-        edge_df.to_csv(DATA_DIR / f'EDGE_{suffix}.csv', index=False)
 
-    return node_df, edge_df
+    return g, node_df, edge_df
+
+
+def save_network_sim_data(edge_df: pd.DataFrame, node_df: pd.DataFrame, suffix: str, data_dir=None):
+    if data_dir is None:
+        data_dir = DATA_DIR
+        
+    edge_df.to_csv(data_dir / f'EDGE_{suffix}.csv', index=False)
+    node_df.to_csv(data_dir / f'NODE_{suffix}.csv', index=False)
+
 
 DATA_DIR = Path(__file__).parent / "data_size_5"
 
-### zafixowane, bo architektura ###
-SMALLEST_NET = 5 
-BIGGEST_NET = 5
+# zafixowane, bo architektura #
+SMALLEST_NET = 10
+BIGGEST_NET = 10
 
 MIN_PACKETS_PER_TURN = 0
 MAX_PACKETS_PER_TURN = 5
 MORE_PACKETS_PER_TURN = 1
 
+SIM_TICKS = 500
+
 if __name__ == "__main__":
-    from sys import argv 
+    from sys import argv
     if len(argv) > 2:
         DATA_DIR = DATA_DIR.parent / argv[2]
     makedirs(DATA_DIR, exist_ok=True)
@@ -213,5 +214,7 @@ if __name__ == "__main__":
     n = int(argv[1])
     for i in range(n):
         print("Generating ", i, "/", n)
-        node_data, edge_data = generate_node_and_edge_data(
-                SMALLEST_NET, BIGGEST_NET, 5000, to_csv_and_suff=(True, str(i)))
+        g, node_data, edge_data = generate_node_and_edge_data(SMALLEST_NET, BIGGEST_NET, SIM_TICKS)
+
+        if True:
+            save_network_sim_data(edge_data, node_data, suffix=str(i), data_dir=DATA_DIR)

@@ -11,43 +11,10 @@ from pathlib import Path
 from torch_geometric.data import Data, DataLoader
 
 import models
-from generate_network_data import DATA_DIR
+from data_generate import DATA_DIR
 
+from data_read import data_read_dir
 
-def read_data(i: int):
-    '''
-    For given year, pull in node features, edge features, and edge index and
-    save in a PyG Data object.
-    '''
-
-    node = pd.read_csv(DATA_DIR / f"NODE_{i}.csv")
-    edge = pd.read_csv(DATA_DIR / f"EDGE_{i}.csv")
-
-    edge_index = torch.from_numpy(
-        edge[['source', 'target']].to_numpy(np.longlong)).t()
-
-    # if we would implement some edge features, use those lines
-    # edge_attr = torch.from_numpy(edges.to_numpy(np.float32))
-    # edge_attr = (edge_attr - edge_attr.mean(axis=0)) / (edge_attr.std(axis=0))
-
-    node['routing'] = node['routing'].map(json.loads).map(list)
-    node_x_gen_packets = torch.from_numpy(
-            node['generated_packets_avg'].to_numpy(np.float32)[np.newaxis, :]) # .unsqueeze(1)
-
-    node_x_routing = torch.from_numpy(np.array(node['routing'].tolist(), dtype=np.float32))
-
-    node_x = torch.concat(
-        (node_x_gen_packets.permute(1, 0),
-        node_x_routing.reshape((NODES_NUM, NODES_NUM))),
-    dim=1)
-    node_x = (node_x - node_x.flatten().min()) / node_x.flatten().max()
-
-    node_y = torch.from_numpy(
-        node['forward_avg'].to_numpy(np.float32)) # .unsqueeze(1)
-    node_y = node_y - node_y.flatten().min()
-    node_y = (node_y / node_y.flatten().max())[:, None]
-
-    return Data(x=node_x, edge_index=edge_index, y=node_y)
 
 
 def evaluate_model(model, data_iter):
