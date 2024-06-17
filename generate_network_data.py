@@ -12,9 +12,6 @@ from pathlib import Path
 
 from pandas.compat import sys
 
-DATA_DIR = Path(__file__).parent / "data"
-DATA_DIR = Path(__file__).parent / "data_r_unsorted"
-makedirs(DATA_DIR, exist_ok=True)
 
 # notes:
 # DATA:
@@ -23,13 +20,6 @@ makedirs(DATA_DIR, exist_ok=True)
 #   Edge Attr:  9375, 10, floaty (-1, 30)
 #   Y:          189, 1    floaty (..., 25)
 
-### zafixowane, bo architektura ###
-SMALLEST_NET = 50
-BIGGEST_NET = 50
-
-MIN_PACKETS_PER_TURN = 0
-MAX_PACKETS_PER_TURN = 20
-MORE_PACKETS_PER_TURN = 10
 
 
 @dataclass
@@ -204,10 +194,24 @@ def generate_node_and_edge_data(
 
     return node_df, edge_df
 
+DATA_DIR = Path(__file__).parent / "data_size_5"
+
+### zafixowane, bo architektura ###
+SMALLEST_NET = 5 
+BIGGEST_NET = 5
+
+MIN_PACKETS_PER_TURN = 0
+MAX_PACKETS_PER_TURN = 5
+MORE_PACKETS_PER_TURN = 1
 
 if __name__ == "__main__":
-    n = int(sys.argv[1])
+    from sys import argv 
+    if len(argv) > 2:
+        DATA_DIR = DATA_DIR.parent / argv[2]
+    makedirs(DATA_DIR, exist_ok=True)
+
+    n = int(argv[1])
     for i in range(n):
         print("Generating ", i, "/", n)
         node_data, edge_data = generate_node_and_edge_data(
-                50, 50, 5000, to_csv_and_suff=(True, str(i)))
+                SMALLEST_NET, BIGGEST_NET, 5000, to_csv_and_suff=(True, str(i)))

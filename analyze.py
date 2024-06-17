@@ -63,7 +63,10 @@ if __name__ == "__main__":
     model_path = list_models(int(argv[1]))    
 
     import inference as inf
-    import models
-    
-    model = inf.load_model(model_path, models.GNNKacper())
+    import train_gat2
+    train_gat2.DATA_DIR = train_gat2.DATA_DIR.parent / argv[3]
+    data_train, data_val = train_gat2.get_data()
+    model = inf.load_model(model_path, train_gat2.model)
+    inf.inference(data_val[int(argv[2])], model)
+
     
