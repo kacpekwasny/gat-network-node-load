@@ -10,7 +10,7 @@ from pathlib import Path
 
 from torch_geometric.data import Data, DataLoader
 
-import models
+import old_ver.models as models
 from data_generate import DATA_DIR
 
 from data_read import data_read_dir
@@ -109,7 +109,7 @@ if __name__ == "__main__":
     }
     model, losses = train(model)
 
-    import analyze as az
+    import old_ver.analyze as az
     # az.comparison_plot(losses)
     
     # az.draw_results(d.edge_index.T, model(d).detach(), d.y)

@@ -62,7 +62,7 @@ if __name__ == "__main__":
         exit()
     model_path = list_models(int(argv[1]))    
 
-    import inference as inf
+    import old_ver.inference as inf
     import train_gat2
     train_gat2.DATA_DIR = train_gat2.DATA_DIR.parent / argv[3]
     data_train, data_val = train_gat2.get_data()

@@ -11,7 +11,7 @@ from tensorflow.keras import layers
 from models_traffic_forecast import LSTMGC, GraphConv, GraphInfo
 from data_read import data_read_dir, create_tf_dataset
 
-
+from sklearn.preprocessing import StandardScaler
 
 
 def graph_info(adj: np.ndarray) -> GraphInfo:
@@ -45,15 +45,17 @@ def train(dtrain: tf.data.Dataset, dval: tf.data.Dataset, nodes: np.ndarray, adj
     model.compile(
         optimizer=keras.optimizers.RMSprop(learning_rate=0.0002),
         loss=keras.losses.MeanSquaredError(),
+        metrics=[keras.metrics.MeanAbsoluteError(), keras.metrics.RootMeanSquaredError()],
     )
 
-    model.fit(
+    history = model.fit(
         dtrain,
         validation_data=dval,
         epochs=epochs,
         callbacks=[keras.callbacks.EarlyStopping(patience=10)],
     )
 
+    print(f"Training history: {history.history}")
 
 in_feat = 1
 batch_size = 64
@@ -73,11 +75,20 @@ if __name__ == "__main__":
     from sys import argv
 
     data = data_read_dir(argv[1])
+
+    scaler = StandardScaler()
     for nodes, adj in data:
         steps = nodes.shape[0]
 
+        print(nodes.shape, adj.shape)
+
         tn = nodes[:int(steps * 0.8)]
         vn = nodes[int(steps*0.8):]
+
+        # Normalizacja danych treningowych i walidacyjnych
+        tn = scaler.fit_transform(tn)
+        vn = scaler.transform(vn)
+
         dt = create_tf_dataset(
             tn,
             input_sequence_length=input_sequence_length,

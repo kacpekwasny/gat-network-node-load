@@ -30,7 +30,8 @@ class NetworkNode:
     buffer_even: list[int] = field(default_factory=list)
 
     # list of number of packets forwarded in every turn
-    forward_history: list[int] = field(default_factory=list)
+    # forward_history: list[int] = field(default_factory=list)
+    forward_history: list[float] = field(default_factory=list)
 
     dst_probability: DstProbability = field(default=None)
 
@@ -45,7 +46,7 @@ class NetworkNode:
 
     def __post_init__(self):
         return
-        self.routing_table.pop(self.node)
+        self.routing_table.pop(self.node, None)
 
     def set_dst_probability(self, probability_generator, g: nx.Graph):
         self.dst_probability = probability_generator(self.node, g)
@@ -156,24 +157,46 @@ def generate_node_and_edge_data(
         nx.draw(g)
         plt.savefig(DATA_DIR / f"PLOT_{suffix}.png")
 
-    # Save node data
+    # # Save node data - oryginalny forward_history
+    # node_data = []
+    # for n, node in nodes.items():
+    #     no_of_hops = [len(node.routing_table[r])
+    #                   for r in sorted(node.routing_table.keys())]
+    #     node_data.append({
+    #         'node': n,
+    #         'routing': json.dumps(no_of_hops),
+    #         # the probability is uniform
+    #         # 'dst_probability': node.dst_probability.probabilities,
+    #         'forward_history': json.dumps(node.forward_history),
+    #         'forward_min': min(node.forward_history),
+    #         'forward_max': max(node.forward_history),
+    #         'forward_avg': sum(node.forward_history) / turns,
+    #         'generated_packets_sum': node.generated_packets,
+    #         'generated_packets_avg': node.generated_packets / turns,
+    #         'generated_packets_prob_min': node.packet_generated_probability[0],
+    #         'generated_packets_prob_max': node.packet_generated_probability[1],
+    #         'buffer_size': max(len(node.buffer_even), len(node.buffer_odd)),
+    #     })
+    # node_df = pd.DataFrame(node_data)
+
+    # Save node data - wygładzony forward_history
     node_data = []
     for n, node in nodes.items():
         no_of_hops = [len(node.routing_table[r])
-                      for r in sorted(node.routing_table.keys())]
+                        for r in sorted(node.routing_table.keys())]
+        smoothed_forward_history = np.convolve(node.forward_history, np.ones(10)/10, mode='valid').tolist()
         node_data.append({
             'node': n,
             'routing': json.dumps(no_of_hops),
-            # the probability is uniform
-            # 'dst_probability': node.dst_probability.probabilities,
-            'forward_history': json.dumps(node.forward_history),
-            'forward_min': min(node.forward_history),
-            'forward_max': max(node.forward_history),
-            'forward_avg': sum(node.forward_history) / turns,
+            'forward_history': json.dumps(smoothed_forward_history),
+            'forward_min': min(smoothed_forward_history),
+            'forward_max': max(smoothed_forward_history),
+            'forward_avg': sum(smoothed_forward_history) / len(smoothed_forward_history),
             'generated_packets_sum': node.generated_packets,
             'generated_packets_avg': node.generated_packets / turns,
             'generated_packets_prob_min': node.packet_generated_probability[0],
             'generated_packets_prob_max': node.packet_generated_probability[1],
+            'buffer_size': max(len(node.buffer_even), len(node.buffer_odd))
         })
     node_df = pd.DataFrame(node_data)
 
@@ -203,7 +226,7 @@ MIN_PACKETS_PER_TURN = 0
 MAX_PACKETS_PER_TURN = 5
 MORE_PACKETS_PER_TURN = 1
 
-SIM_TICKS = 500
+SIM_TICKS = 5000
 
 if __name__ == "__main__":
     from sys import argv

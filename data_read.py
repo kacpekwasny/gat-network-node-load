@@ -9,6 +9,12 @@ import tensorflow as tf
 import numpy as np
 
 
+def normalize_data(data: np.ndarray) -> np.ndarray:
+    mean = data.mean(axis=0)
+    std = data.std(axis=0)
+    return (data - mean) / std
+
+
 def data_read_pair(data_dir: Path, i: int) -> tuple[pd.DataFrame, pd.DataFrame]:
     """
     For given year, pull in node features, edge features, and edge index and
@@ -23,6 +29,10 @@ def data_read_pair(data_dir: Path, i: int) -> tuple[pd.DataFrame, pd.DataFrame]:
 
     if "routing" in node:
         node["routing"] = node["routing"].map(json.loads)
+
+    print(f"Loaded NODE_{i}.csv and EDGE_{i}.csv")
+    print(f"Node data: {node.head()}")
+    print(f"Edge data: {edge.head()}")
 
     return node, edge
 
@@ -63,11 +73,7 @@ def data_process_node_for_forward_history(
     forward_his = np.array(forward_his.to_list(), dtype=np.float32)
     forward_his = forward_his.transpose()
 
-    mean = forward_his.mean(axis=0)
-    std = forward_his.std(axis=0)
-
-    forward_his = (forward_his - mean) / std
-    forward_his = np.nan_to_num(forward_his)
+    forward_his = normalize_data(forward_his)
 
     return forward_his
 
@@ -80,6 +86,8 @@ def create_tf_dataset(
     shuffle=True,
     multi_horizon=True,
 ):
+    data_array = normalize_data(data_array)
+
     inputs = timeseries_dataset_from_array(
         np.expand_dims(data_array[:-forecast_horizon], axis=-1),
         None,
