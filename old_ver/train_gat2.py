@@ -11,7 +11,7 @@ from pathlib import Path
 from torch_geometric.data import Data, DataLoader
 
 import old_ver.models as models
-from data_generate import DATA_DIR
+from data_packages_generate import DATA_DIR
 
 from data_read import data_read_dir
 
